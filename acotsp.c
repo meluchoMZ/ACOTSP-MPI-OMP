@@ -42,6 +42,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <time.h>
 
 #include "parallel.h"
@@ -51,6 +52,7 @@
 #include "TSP.h"
 #include "timer.h"
 #include "ls.h"
+#include "ft_aco.h"
 
 
 
@@ -84,12 +86,11 @@ void construct_solutions( void )
 {
     long int k;        /* counter variable */
     long int step;    /* counter of the number of construction steps */
-    double time1;
 
     TRACE ( printf("construct solutions for all ants\n"); );
 
     /***  OMP PARALLEL LOOP ****/
-    #pragma omp parallel for private(k,step) schedule(guided)
+    //#pragma omp parallel for private(k,step) schedule(guided)
     for ( k = 0 ; k < n_ants ; k++) {
         step=0;
         /* Mark all cities as unvisited */
@@ -125,7 +126,7 @@ void init_try( long int ntry )
 
     TRACE ( printf("INITIALIZE TRIAL\n"); );
 
-  //  MPI_Barrier(MPI_COMM_WORLD);
+  //  MPI_Barrier(comm);
 
     start_timers();
     time_used = elapsed_time( REAL );
@@ -192,12 +193,11 @@ void local_search( void )
 */
 {
     long int k;
-    double time1;
 
     TRACE ( printf("apply local search to all ants\n"); );
 
     /****   OMP PARALLEL LOOP ****/
-    #pragma omp parallel for schedule(guided)
+    //#pragma omp parallel for schedule(guided)
     for ( k = 0 ; k < n_ants ; k++ ) {
 	switch (ls_flag) {
         case 1:
@@ -220,7 +220,7 @@ void local_search( void )
 
 
 
-void update_statistics( void )
+void update_statistics(MPI_Comm comm)
 /*    
       FUNCTION:       manage some statistical information about the trial, especially
                       if a new best solution (best-so-far or restart-best) is found and
@@ -245,7 +245,7 @@ void update_statistics( void )
 
     /*** Asynchronous communication to other colonies ***/
     if(best_so_far_ant ->tour_length < best_global_tour_length)
-            	sendBestSolutionToColonies();
+            	sendBestSolutionToColonies(comm);
 
 	found_best = iteration;
 	restart_found_best = iteration;
@@ -274,7 +274,7 @@ void update_statistics( void )
     }
 
     /*** Listen from other colonies ***/
-	listenTours();
+	listenTours(comm);
 
  
 }
@@ -550,7 +550,12 @@ void pheromone_trail_update( void )
     }
 }
 
-
+#if defined FT_ACO && defined FT_ABORT_ON_FAILURE
+void cleanup(void * ptr)
+{
+    printf("CLEANUP FUNCTION %d\n", *((int *) ptr));
+}
+#endif
 
 /* --- main program ------------------------------------------------------ */
 
@@ -564,13 +569,47 @@ int main(int argc, char *argv[]) {
 
 */
 
+    //MPI_Comm comm;
+    #if  defined FT_ACO && (defined FT_ERRORS_ARE_FATAL || defined FT_ERRORS_RETURN || defined FT_ABORT_ON_FAILURE  || defined FT_IGNORE_ON_FAILURE)
+    MPI_Errhandler error_handler;
+    #ifdef FT_ABORT_ON_FAILURE
+    int ft_parameter = 666;
+    #endif 
+    #endif
     long int i;
     start_timers();
+    //int provided_threads;
 
     /** MPI Initialization **/
+    //MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided_threads);
     MPI_Init(&argc, &argv);
+    //MPI_Comm_dup(MPI_COMM_WORLD, &comm);
     MPI_Comm_size(MPI_COMM_WORLD, &NPROC);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);  
+    FT_init();
+
+    #ifdef FT_ACO
+    #ifdef FT_ERRORS_ARE_FATAL
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+    printf("Using FT_ERRORS_ARE_FATAL_HANDLER\n");
+    #endif
+    #ifdef FT_ERRORS_RETURN
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+    printf("Using FT_ERRORS_RETURN_HANLDER\n");
+    #endif
+    #ifdef FT_ABORT_ON_FAILURE
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, FT_ABORT_ON_FAILURE_HANDLER);
+    FT_set_cleanup_function(cleanup, (void *) &ft_parameter);
+    printf("Using FT_ABORT_ON_FAILURE_HANDLER\n");
+    #endif
+    #ifdef FT_IGNORE_ON_FAILURE
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, FT_IGNORE_ON_FAILURE_HANDLER);
+    printf("Using FT_IGNORE_ON_FAILURE_HANDLER\n");
+    #endif
+
+    //MPI_Barrier(comm);
+    printf("Process %d / %d: reporting alive\n", mpi_id, NPROC);
+    #endif
     
     
     init_program(argc, argv);
@@ -588,25 +627,38 @@ int main(int argc, char *argv[]) {
  	init_try(n_try);
 
     if ( NPROC >1 )
-            startCommColoniesTour(); /*prepare buffer for communications from Colonies */
+            startCommColoniesTour(MPI_COMM_WORLD); /*prepare buffer for communications from Colonies */
 
 	while ( !termination_condition() ) {
         
+        //printf("Entering while loop\n");
 	    construct_solutions();
         
 	    if ( ls_flag > 0 )
 		       local_search();
 
-	    update_statistics();
+	    update_statistics(MPI_COMM_WORLD);
 
 	    pheromone_trail_update();  
 
 	    search_control_and_statistics();
 
 	    iteration++;
+
+        #ifdef FT_ACO
+
+		if (mpi_id == NPROC-1) {
+            printf("MÁTOME AQUÍ\n");
+			raise(SIGKILL);
+		}
+        //MPI_Bcast(&NPROC, 1, MPI_INT, 0, comm);
+        //MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);
+        //MPI_Comm_size(MPI_COMM_WORLD, &NPROC);
+        //printf("AFTER FAILURE REW PROCESS MAPPING: %d / %d\n", mpi_id, NPROC);
+        #endif
 	}
 
-	exit_try(n_try);
+	exit_try(MPI_COMM_WORLD, n_try);
         
     }
     
@@ -636,7 +688,11 @@ int main(int argc, char *argv[]) {
     fflush(comp_report);
     fflush(stat_report);
     
-    MPI_Barrier(MPI_COMM_WORLD);
+    #ifdef FT_ACO
+    MPI_Errhandler_free(&error_handler);
+    FT_finalize();
+    #endif
+    //MPI_Barrier(comm);
     MPI_Finalize();
 
     return(0);

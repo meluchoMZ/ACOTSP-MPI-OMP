@@ -43,16 +43,16 @@ extern int mpi_id;
 extern int NPROC;
 extern int stopColonies;
 
-void parallel_init(void);
+void parallel_init(MPI_Comm comm, MPI_Errhandler error_handler);
 
-void sendBestSolutionToColonies(void);
+void sendBestSolutionToColonies(MPI_Comm comm);
 
-void startCommColoniesTour(void);
+void startCommColoniesTour(MPI_Comm comm);
 
-void listenTours(void);
+void listenTours(MPI_Comm comm);
 
 void foreign_solution_update_pheromone (long int *ft);
 
 void foreign_solution_update_pheromone_weighted(long int *ft, long int w);
 
-void write_mpi_report();
+void write_mpi_report(MPI_Comm comm);

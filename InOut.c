@@ -559,7 +559,7 @@ void output_solution( void )
 
 
 
-void exit_try( long int ntry ) 
+void exit_try(MPI_Comm comm,  long int ntry ) 
 /*    
       FUNCTION:       save some statistical information on a trial once it finishes
       INPUT:          trial number
@@ -570,7 +570,7 @@ void exit_try( long int ntry )
   checkTour( best_so_far_ant->tour );
 /*    printTourFile( best_so_far_ant->tour ); */
 
-  write_mpi_report();
+  write_mpi_report(comm);
 
   if (report)
       fprintf(report, "Best: %ld\t Iterations: %6ld\t B-Fac %.5f\t Time %.2f\t Tot.time %.2f\n",

@@ -44,7 +44,9 @@
 #include "ls.h"
 #include "utilities.h"
 
+#ifndef M_PI
 #define M_PI 3.14159265358979323846264
+#endif
 
 long int n;          /* number of cities in the instance to be solved */
 

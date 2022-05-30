@@ -499,7 +499,7 @@ void three_opt_first( long int *tour )
 
     long int   c1, c2, c3;           /* cities considered for an exchange */
     long int   s_c1, s_c2, s_c3;     /* successors of these cities        */
-    long int   p_c1, p_c2, p_c3;     /* predecessors of these cities      */   
+    long int   p_c2, p_c3;     /* predecessors of these cities      */   
     long int   pos_c1, pos_c2, pos_c3;     /* positions of cities c1, c2, c3    */
     long int   i, j, h, g, l;
     long int   improvement_flag, help;
@@ -550,10 +550,6 @@ void three_opt_first( long int *tour )
 	    move_flag = 0;
 	    pos_c1 = pos[c1];
 	    s_c1 = tour[pos_c1+1];
-	    if (pos_c1 > 0)
-		p_c1 = tour[pos_c1-1];
-	    else 
-		p_c1 = tour[n-1];
 
 	    h = 0;    /* Search for one of the h-nearest neighbours */
 	    while ( h < nn_ls ) {

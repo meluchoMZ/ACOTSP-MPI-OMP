@@ -721,7 +721,6 @@ void bwas_worst_ant_update( ant_struct *a1, ant_struct *a2)
 */
 {  
     long int    i, j, h, pos, pred;
-    long int    distance;
     long int    *pos2;        /* positions of cities in tour of ant a2 */ 
 
     TRACE ( printf("bwas specific: best-worst pheromone update\n"); );
@@ -731,7 +730,6 @@ void bwas_worst_ant_update( ant_struct *a1, ant_struct *a2)
 	pos2[a2->tour[i]] = i;
     }
  
-    distance = 0;
     for ( i = 0 ; i < n ; i++ ) {
 	j = a1->tour[i];
 	h = a1->tour[i+1];

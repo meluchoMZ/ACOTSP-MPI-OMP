@@ -2,22 +2,28 @@
 # To be adapted to the testbed used
 
 VERSION=MPI-OMP
-
+WITH_ACO=FT_ACO
+#HANDLER = FT_ERRORS_ARE_FATAL
+HANDLER = FT_ERRORS_RETURN
+#HANDLER = FT_ABORT_ON_FAILURE
+#HANDLER = FT_IGNORE_ON_FAILURE
 OPTIM_FLAGS=-O
-WARN_FLAGS=-parallel -qopenmp  
-CFLAGS=$(WARN_FLAGS) $(OPTIM_FLAGS)
-CC=mpiicc
+WARN_FLAGS=-Wall -Wextra -Werror
+# -D_FT_ACO_ to compile with Fault tolerance API
+CFLAGS=$(WARN_FLAGS) $(OPTIM_FLAGS) -I ~/mpi402/include/ -fopenmp -DF$(WITH_ACO) -D$(HANDLER)
+
+CC=mpicc
 # To change the default timer implementation, uncomment the line below
 #TIMER=dos
 TIMER=unix
-LDLIBS=-lm -parallel -qopenmp
+LDLIBS=-lm -L/home/miguel.blanco/mpi402/lib -fopenmp -lmpi -lpthread
 
 all: clean acotsp
 
 clean:
 	@$(RM) *.o acotsp
 
-acotsp: acotsp.o parallel.o TSP.o utilities.o ants.o InOut.o $(TIMER)_timer.o ls.o parse.o
+acotsp: acotsp.o parallel.o TSP.o utilities.o ants.o InOut.o $(TIMER)_timer.o ls.o parse.o ft_aco.o
 
 acotsp.o: acotsp.c
 
@@ -34,6 +40,9 @@ ls.o: ls.c ls.h
 parse.o: parse.c parse.h
 
 parallel.o: parallel.c parallel.h
+
+# Fault tolerance API
+ft_aco.o: ft_aco.c ft_aco.h
 
 $(TIMER)_timer.o: $(TIMER)_timer.c timer.h
 

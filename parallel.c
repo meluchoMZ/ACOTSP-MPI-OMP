@@ -55,26 +55,21 @@ MPI_Request SRrequest;
 MPI_Request Srequest;
 MPI_Status status;
 MPI_Status Sstatus;
-MPI_Errhandler errh;
 
 int mpi_id;
 int NPROC;
 int stopColonies;
 long int ss;
 
-void parallel_init( void )
+void parallel_init(MPI_Comm comm, MPI_Errhandler error_handler)
 {
-    int i;
-
-    MPI_Errhandler errh;
-    
     MPI_Init(NULL,NULL);
  
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);
-    MPI_Comm_size(MPI_COMM_WORLD, &NPROC);
+    MPI_Comm_rank(comm, &mpi_id);
+    MPI_Comm_size(comm, &NPROC);
     
     // avoid errors to be fatal, depends on MPI framework
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+    MPI_Comm_set_errhandler(comm, error_handler);
 }
 
 
@@ -84,7 +79,7 @@ void parallel_init( void )
  Routine to start recv. of communications from Colonies
  **/
 
-void startCommColoniesTour ( void )
+void startCommColoniesTour (MPI_Comm comm)
 {
     int i;
     
@@ -93,7 +88,7 @@ void startCommColoniesTour ( void )
     for (i=0 ; i<NPROC ; i++)
         if (i!=mpi_id)
    	    	MPI_Irecv(&global_tour[i][0], n+1, MPI_LONG, i,
-        	      3000, MPI_COMM_WORLD, &request[i][n_try]);
+        	      3000, comm, &request[i][n_try]);
     
 }
 
@@ -101,17 +96,19 @@ void startCommColoniesTour ( void )
 /**
  Routine to send the best solution found to the rest of Colonies
  **/
-void sendBestSolutionToColonies ( void )
+void sendBestSolutionToColonies (MPI_Comm comm)
 {
     int     i,j;
-    int     rc;
+    int rank, size;
 
     /* Send best solution found (tour) to the rest of the colonies */
     
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
     for( i=0 ; i<NPROC ; i++ )
        if ( i != mpi_id){
            MPI_Isend(best_so_far_ant->tour, n+1, MPI_LONG, i,
-                     3000, MPI_COMM_WORLD, &Srequest);
+                     3000, comm, &Srequest);
         }
 
     for ( j=0 ; j<n+1 ; j++ )
@@ -119,6 +116,7 @@ void sendBestSolutionToColonies ( void )
     best_global_tour_length = best_so_far_ant->tour_length;
     
     if (mpi_id==0 && cc_report) fprintf(cc_report,"%ld \t %f\n",best_global_tour_length,elapsed_time(REAL));
+    printf("Process %d / %d: sent best solution to colonies\n", rank, size);
 
 }
 
@@ -126,7 +124,7 @@ void sendBestSolutionToColonies ( void )
 /**
  Routine to check if there are pending Tour messages from Colonies
  **/
-void listenTours()
+void listenTours(MPI_Comm comm)
 {
     int     i, j;
     int     flag;
@@ -158,7 +156,7 @@ void listenTours()
                 
             /* Prepare to receive more solutions */
                MPI_Irecv(&global_tour[status.MPI_SOURCE][0], n+1, MPI_LONG,
-                      status.MPI_SOURCE, 3000, MPI_COMM_WORLD, &request[i][n_try]);
+                      status.MPI_SOURCE, 3000, comm, &request[i][n_try]);
             
             }
       }
@@ -225,7 +223,7 @@ void foreign_solution_update_pheromone_weighted( long int *ftour, long int weigh
 /**
  Routine to write one summarize mpi report
  **/
-void write_mpi_report ( void )
+void write_mpi_report (MPI_Comm comm)
 {
     int     i, com_id;
     long int    best_com_tour, com_tour_length, com_iter, com_found_best;
@@ -239,10 +237,10 @@ void write_mpi_report ( void )
     
     if( mpi_id == 0 ) {
         for( i=1 ; i<NPROC ; i++ ) {
-              MPI_Recv(&com_tour_length, 1, MPI_LONG, i, 2000, MPI_COMM_WORLD, &status);
-              MPI_Recv(&com_iter, 1, MPI_LONG, i, 2000, MPI_COMM_WORLD, &status);
-              MPI_Recv(&com_b_fac, 1, MPI_DOUBLE, i, 2000, MPI_COMM_WORLD, &status);
-              MPI_Recv(&com_time, 1, MPI_DOUBLE, i, 2000, MPI_COMM_WORLD, &status);
+              MPI_Recv(&com_tour_length, 1, MPI_LONG, i, 2000, comm, &status);
+              MPI_Recv(&com_iter, 1, MPI_LONG, i, 2000, comm, &status);
+              MPI_Recv(&com_b_fac, 1, MPI_DOUBLE, i, 2000, comm, &status);
+              MPI_Recv(&com_time, 1, MPI_DOUBLE, i, 2000, comm, &status);
             
               if ( com_tour_length < best_com_tour ) {
                 best_com_tour = com_tour_length;
@@ -259,10 +257,10 @@ void write_mpi_report ( void )
         fflush(summary);
         fflush(cc_report);
     } else {
-        MPI_Isend(&best_com_tour, 1, MPI_LONG, 0, 2000, MPI_COMM_WORLD,&SRrequest);
-        MPI_Isend(&com_found_best, 1, MPI_LONG, 0, 2000, MPI_COMM_WORLD,&SRrequest);
-        MPI_Isend(&com_found_branching, 1, MPI_DOUBLE, 0, 2000, MPI_COMM_WORLD,&SRrequest);
-        MPI_Isend(&com_best_time, 1, MPI_DOUBLE, 0, 2000, MPI_COMM_WORLD,&SRrequest);
+        MPI_Isend(&best_com_tour, 1, MPI_LONG, 0, 2000, comm,&SRrequest);
+        MPI_Isend(&com_found_best, 1, MPI_LONG, 0, 2000, comm,&SRrequest);
+        MPI_Isend(&com_found_branching, 1, MPI_DOUBLE, 0, 2000, comm,&SRrequest);
+        MPI_Isend(&com_best_time, 1, MPI_DOUBLE, 0, 2000, comm,&SRrequest);
     }
     
 

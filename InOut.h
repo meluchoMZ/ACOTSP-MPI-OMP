@@ -33,7 +33,7 @@
 #define CALL_SYNTAX_STR  "call syntax:  acotsp <param-list>\n"
 
 #define LINE_BUF_LEN     255
-
+#include <mpi.h>
 struct point * read_etsp(const char *tsp_file_name);
 
 extern long int *best_in_try;
@@ -90,7 +90,7 @@ void init_try( long int ntry );
 
 void output_solution( void );
 
-void exit_try( long int ntry );
+void exit_try(MPI_Comm comm,  long int ntry );
 
 void exit_program( void );
 
