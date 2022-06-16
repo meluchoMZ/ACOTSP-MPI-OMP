@@ -34,7 +34,7 @@
 
 
 #include <mpi.h>
-#include <omp.h>
+//#include <omp.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -656,7 +656,7 @@ void init_program( long int argc, char *argv[] )
 */
 {
 
-  char temp_buffer[LINE_BUF_LEN];
+  //char temp_buffer[LINE_BUF_LEN];
 
   printf(PROG_ID_STR);
   set_default_parameters();
@@ -670,9 +670,9 @@ void init_program( long int argc, char *argv[] )
   time_best_found = calloc(max_tries, sizeof(double));
   time_total_run = calloc(max_tries, sizeof(double));
   
-  TRACE ( printf("read problem data  ..\n\n"); )
+  //TRACE ( printf("read problem data  ..\n\n"); )
   instance.nodeptr = read_etsp(name_buf);
-  TRACE ( printf("\n .. done\n\n"); )
+  //TRACE ( printf("\n .. done\n\n"); )
 
   if (n_ants < 0) n_ants = n;
   /* default setting for elitist_ants is 0; if EAS is applied and
@@ -689,12 +689,12 @@ void init_program( long int argc, char *argv[] )
   
   if (!quiet_flag) {
       if(mpi_id==0){
-         sprintf(temp_buffer,"summary.%s.threads.%d.mpi.%d",instance.name,omp_get_max_threads(),NPROC);
-         TRACE ( printf("%s\n",temp_buffer); )
-             summary = fopen(temp_buffer, "w");
-         sprintf(temp_buffer,"cc.%s.threads.%d.mpi.%d",instance.name,omp_get_max_threads(),NPROC);
-         TRACE ( printf("%s\n",temp_buffer); )
-             cc_report = fopen(temp_buffer, "w");
+         //sprintf(temp_buffer,"summary.%s.threads.%d.mpi.%d",instance.name,omp_get_max_threads(),NPROC);
+         //TRACE ( printf("%s\n",temp_buffer); )
+             ///summary = fopen(temp_buffer, "w");
+         //sprintf(temp_buffer,"cc.%s.threads.%d.mpi.%d",instance.name,omp_get_max_threads(),NPROC);
+         //TRACE ( printf("%s\n",temp_buffer); )
+             //cc_report = fopen(temp_buffer, "w");
       }
     /*   These buffers would be useful if we want to see the particular results of each colony */
       parallel = NULL;
@@ -729,7 +729,7 @@ void init_program( long int argc, char *argv[] )
   printf(" .. done\n");
   write_params();
   if (comp_report)
-      fprintf(comp_report,"begin problem %s\n",name_buf);
+      //fprintf(comp_report,"begin problem %s\n",name_buf);
   printf("allocate ants' memory ..\n\n");
   allocate_ants();
   printf(" .. done\n");

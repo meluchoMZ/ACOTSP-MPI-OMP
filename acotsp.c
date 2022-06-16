@@ -35,7 +35,7 @@
 
 
 #include <mpi.h>
-#include <omp.h>
+//#include <omp.h>
 #include <stdio.h>
 #include <math.h>
 #include <limits.h>
@@ -90,7 +90,6 @@ void construct_solutions( void )
     TRACE ( printf("construct solutions for all ants\n"); );
 
     /***  OMP PARALLEL LOOP ****/
-    //#pragma omp parallel for private(k,step) schedule(guided)
     for ( k = 0 ; k < n_ants ; k++) {
         step=0;
         /* Mark all cities as unvisited */
@@ -197,7 +196,6 @@ void local_search( void )
     TRACE ( printf("apply local search to all ants\n"); );
 
     /****   OMP PARALLEL LOOP ****/
-    //#pragma omp parallel for schedule(guided)
     for ( k = 0 ; k < n_ants ; k++ ) {
 	switch (ls_flag) {
         case 1:
@@ -569,7 +567,7 @@ int main(int argc, char *argv[]) {
 
 */
 
-    //MPI_Comm comm;
+    MPI_Comm comm;
     #if  defined FT_ACO && (defined FT_ERRORS_ARE_FATAL || defined FT_ERRORS_RETURN || defined FT_ABORT_ON_FAILURE  || defined FT_IGNORE_ON_FAILURE)
     MPI_Errhandler error_handler;
     #ifdef FT_ABORT_ON_FAILURE
@@ -578,33 +576,39 @@ int main(int argc, char *argv[]) {
     #endif
     long int i;
     start_timers();
-    //int provided_threads;
+    int provided;
 
     /** MPI Initialization **/
-    //MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided_threads);
-    MPI_Init(&argc, &argv);
-    //MPI_Comm_dup(MPI_COMM_WORLD, &comm);
-    MPI_Comm_size(MPI_COMM_WORLD, &NPROC);
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);  
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_SINGLE, &provided);
+    if (provided == MPI_THREAD_SINGLE) {
+        printf("Executing in MPI_THREAD_SINGLE mode\n");
+    }
+    //MPI_Init(&argc, &argv);
+    MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+    MPI_Comm_size(comm, &NPROC);
+    MPI_Comm_rank(comm, &mpi_id);  
     FT_init();
 
     #ifdef FT_ACO
     #ifdef FT_ERRORS_ARE_FATAL
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+    MPI_Comm_set_errhandler(comm, MPI_ERRORS_ARE_FATAL);
     printf("Using FT_ERRORS_ARE_FATAL_HANDLER\n");
     #endif
     #ifdef FT_ERRORS_RETURN
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+    MPI_Comm_set_errhandler(comm, MPI_ERRORS_RETURN);
     printf("Using FT_ERRORS_RETURN_HANLDER\n");
     #endif
     #ifdef FT_ABORT_ON_FAILURE
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, FT_ABORT_ON_FAILURE_HANDLER);
+    MPI_Comm_set_errhandler(comm, FT_ABORT_ON_FAILURE_HANDLER);
     FT_set_cleanup_function(cleanup, (void *) &ft_parameter);
     printf("Using FT_ABORT_ON_FAILURE_HANDLER\n");
     #endif
     #ifdef FT_IGNORE_ON_FAILURE
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, FT_IGNORE_ON_FAILURE_HANDLER);
-    printf("Using FT_IGNORE_ON_FAILURE_HANDLER\n");
+    char time[12] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
+    MPI_Comm_set_errhandler(comm, FT_IGNORE_ON_FAILURE_HANDLER);
+    printf("[%s]: Using FT_IGNORE_ON_FAILURE_HANDLER\n", get_current_time(time));
+    FT_set_respawn_data(argv);
+    printf("[%s] Respawn data shared\n", get_current_time(time));
     #endif
 
     //MPI_Barrier(comm);
@@ -627,7 +631,7 @@ int main(int argc, char *argv[]) {
  	init_try(n_try);
 
     if ( NPROC >1 )
-            startCommColoniesTour(MPI_COMM_WORLD); /*prepare buffer for communications from Colonies */
+            startCommColoniesTour(comm); /*prepare buffer for communications from Colonies */
 
 	while ( !termination_condition() ) {
         
@@ -637,7 +641,7 @@ int main(int argc, char *argv[]) {
 	    if ( ls_flag > 0 )
 		       local_search();
 
-	    update_statistics(MPI_COMM_WORLD);
+	    update_statistics(comm);
 
 	    pheromone_trail_update();  
 
@@ -658,7 +662,7 @@ int main(int argc, char *argv[]) {
         #endif
 	}
 
-	exit_try(MPI_COMM_WORLD, n_try);
+	exit_try(comm, n_try);
         
     }
     

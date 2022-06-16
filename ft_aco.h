@@ -13,9 +13,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
+#include "parallel.h"
 
 #define FT_FAILURE 1
 #define FT_SUCCESS 0
+#define SHARE_COMM_TAG 0x00FEDCBA
 
 // PREDEFINED ERROR HANDLERS
 
@@ -127,4 +130,10 @@ void FT_abort_on_failure(MPI_Comm * comm, int * err, ...);
  * SIDE EFFECTS: none.
  */
 void FT_ignore_on_failure(MPI_Comm * comm, int * err, ...);
+
+void FT_set_respawn_data(char ** argv);
+
+
+char * get_current_time(char * output);
+ 
 #endif

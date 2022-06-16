@@ -3,6 +3,7 @@
 #SBATCH --job-name=ft_aco
 #SBATCH -N 1
 #SBATCH -n 4
+#SBATCH -c 1
 
 export PATH="$PATH:/home/miguel.blanco/mpi402/bin"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/home/miguel.blanco/mpi402/lib"
