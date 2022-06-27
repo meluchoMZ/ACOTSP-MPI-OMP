@@ -242,8 +242,10 @@ void update_statistics(MPI_Comm comm)
 	copy_from_to( &ant[iteration_best_ant], restart_best_ant );
 
     /*** Asynchronous communication to other colonies ***/
-    if(best_so_far_ant ->tour_length < best_global_tour_length)
-            	sendBestSolutionToColonies(comm);
+    if (best_so_far_ant->tour_length < best_global_tour_length) {
+        sendBestSolutionToColonies(comm);
+        printf("[update_statistics] %d / %d: sent best solution\n", mpi_id, NPROC);
+    }
 
 	found_best = iteration;
 	restart_found_best = iteration;
@@ -272,7 +274,9 @@ void update_statistics(MPI_Comm comm)
     }
 
     /*** Listen from other colonies ***/
+    printf("[update_statistics] %d / %d: before 'listenTours'\n", mpi_id, NPROC);
 	listenTours(comm);
+    printf("[update_statistics] %d / %d: after 'listenTours'\n", mpi_id, NPROC);
 
  
 }
@@ -577,17 +581,24 @@ int main(int argc, char *argv[]) {
     long int i;
     start_timers();
     int provided;
+    int killFlag = 0;
 
     /** MPI Initialization **/
+
+	/*
     MPI_Init_thread(&argc, &argv, MPI_THREAD_SINGLE, &provided);
     if (provided == MPI_THREAD_SINGLE) {
         printf("Executing in MPI_THREAD_SINGLE mode\n");
     }
-    //MPI_Init(&argc, &argv);
+    */
+
+
+    MPI_Init(&argc, &argv);
     MPI_Comm_dup(MPI_COMM_WORLD, &comm);
     MPI_Comm_size(comm, &NPROC);
     MPI_Comm_rank(comm, &mpi_id);  
-    FT_init();
+
+	FT_init();
 
     #ifdef FT_ACO
     #ifdef FT_ERRORS_ARE_FATAL
@@ -607,7 +618,7 @@ int main(int argc, char *argv[]) {
     char time[12] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
     MPI_Comm_set_errhandler(comm, FT_IGNORE_ON_FAILURE_HANDLER);
     printf("[%s]: Using FT_IGNORE_ON_FAILURE_HANDLER\n", get_current_time(time));
-    FT_set_respawn_data(argv);
+    FT_set_respawn_data(argv, &mpi_id, &NPROC);
     printf("[%s] Respawn data shared\n", get_current_time(time));
     #endif
 
@@ -615,7 +626,7 @@ int main(int argc, char *argv[]) {
     printf("Process %d / %d: reporting alive\n", mpi_id, NPROC);
     #endif
     
-    
+
     init_program(argc, argv);
     
     instance.nn_list = compute_nn_lists();
@@ -638,23 +649,31 @@ int main(int argc, char *argv[]) {
         //printf("Entering while loop\n");
 	    construct_solutions();
         
+        printf("[main loop] %d / %d: constructing solutions\n", mpi_id, NPROC);
 	    if ( ls_flag > 0 )
 		       local_search();
 
+        printf("[main loop] %d / %d: updating statistics\n", mpi_id, NPROC);
 	    update_statistics(comm);
 
+        printf("[main loop] %d / %d: pheromone trail update\n", mpi_id, NPROC);
 	    pheromone_trail_update();  
 
+        printf("[main loop] %d / %d: search control & statistics\n", mpi_id, NPROC);
 	    search_control_and_statistics();
 
 	    iteration++;
 
         #ifdef FT_ACO
 
-		if (mpi_id == NPROC-1) {
+		printf("[main] TRY: %d\n", n_try);
+		if (killFlag == 0 && mpi_id == NPROC-1) {
             printf("MÁTOME AQUÍ\n");
 			raise(SIGKILL);
 		}
+        killFlag = 1;
+
+
         //MPI_Bcast(&NPROC, 1, MPI_INT, 0, comm);
         //MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);
         //MPI_Comm_size(MPI_COMM_WORLD, &NPROC);
@@ -693,9 +712,11 @@ int main(int argc, char *argv[]) {
     fflush(stat_report);
     
     #ifdef FT_ACO
-    MPI_Errhandler_free(&error_handler);
+    //MPI_Errhandler_free(&error_handler);
     FT_finalize();
     #endif
+
+
     //MPI_Barrier(comm);
     MPI_Finalize();
 

@@ -87,6 +87,7 @@ void FT_abort_on_failure(MPI_Comm * comm, int * err, ...)
 }
 
 char ** gargv;
+int * global_rank, *global_procs;
 
 int MPIX_Comm_replace(MPI_Comm comm, MPI_Comm *newcomm) {
     int verbose = 1;
@@ -139,11 +140,12 @@ redo:
     }
 
 #if 0
-    /* Move this failure around to see what happens */
+    /* Move this failure around to see what happens 
     if( 0 == rank ) {
         fprintf(stderr, "%04d: injecting another failure!\n", rank);
         raise(SIGKILL);
     }
+    */
 #endif
     /* Merge the intercomm, to reconstruct an intracomm (we check
      * that this operation worked before we proceed further) */
@@ -210,8 +212,10 @@ void repair(MPI_Comm * comm) {
     }
 }
 
-void FT_set_respawn_data(char ** argv) {
+void FT_set_respawn_data(char ** argv, int * mpi_id, int * NPROC) {
     gargv = argv;
+    global_rank = (int *) mpi_id;
+	global_procs = (int *) NPROC;
     char time[12] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
     printf("[%s] command: %s; args: %s\n", get_current_time(time), gargv[0], gargv[1]);
 }
@@ -236,17 +240,21 @@ void FT_ignore_on_failure(MPI_Comm * comm, int * err, ...)
     printf("[%s] Error handler: entering\n", get_current_time(time));
     MPI_Comm new_comm;
     printf("[%s] Error handler: before replace\n", get_current_time(time));
-    MPIX_Comm_replace(*comm, &new_comm);
-    //repair(comm);
+    //MPIX_Comm_replace(*comm, &new_comm);
+    repair(comm);
     printf("[%s] Error handler: after replace\n", get_current_time(time));
     //MPI_Comm_free(comm);
-    *comm = new_comm;
+    //*comm = new_comm;
     printf("[%s] Error handler: exiting handler\n", get_current_time(time));
     if (*comm == MPI_COMM_NULL) {
         printf("[%s] Error handler: communicator is NULL\n", get_current_time(time));
     }
     MPI_Comm_group(*comm, &group_c);
     MPI_Group_translate_ranks(group_f, number_of_dead, &ranks_gf, group_c, &ranks_gc);
+	MPI_Comm_rank(*comm, &ranks_gc);
+	printf("[handler - %s] re-ranking processes. New map %d / %d -> %d / %d\n", get_current_time(time), rank, size, ranks_gc, size-number_of_dead);
+	*global_rank = (int) ranks_gc;
+	*global_procs = (int) size - number_of_dead;
     /*
     MPI_Comm * new_comm;
     new_comm = (MPI_Comm *) malloc(sizeof(MPI_Comm));

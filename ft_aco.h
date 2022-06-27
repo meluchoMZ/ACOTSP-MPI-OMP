@@ -131,7 +131,7 @@ void FT_abort_on_failure(MPI_Comm * comm, int * err, ...);
  */
 void FT_ignore_on_failure(MPI_Comm * comm, int * err, ...);
 
-void FT_set_respawn_data(char ** argv);
+void FT_set_respawn_data(char ** argv, int * id, int * nprocs);
 
 
 char * get_current_time(char * output);

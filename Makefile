@@ -41,6 +41,7 @@ ls.o: ls.c ls.h
 
 parse.o: parse.c parse.h
 
+
 parallel.o: parallel.c parallel.h
 
 # Fault tolerance API
