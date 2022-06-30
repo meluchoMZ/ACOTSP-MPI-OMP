@@ -66,6 +66,7 @@ long int termination_condition( void )
 {
     stopColonies = 0;
 
+    printf("[termination_condition] Process %d / %d\n", mpi_id, NPROC);
     if (NPROC == 1) 
     	best_global_tour_length = best_so_far_ant -> tour_length;
     
@@ -585,15 +586,13 @@ int main(int argc, char *argv[]) {
 
     /** MPI Initialization **/
 
-	/*
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_SINGLE, &provided);
-    if (provided == MPI_THREAD_SINGLE) {
-        printf("Executing in MPI_THREAD_SINGLE mode\n");
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+    if (provided == MPI_THREAD_MULTIPLE) {
+        printf("Executing in MPI_THREAD_MULTIPLE mode\n");
     }
-    */
 
 
-    MPI_Init(&argc, &argv);
+    //MPI_Init(&argc, &argv);
     MPI_Comm_dup(MPI_COMM_WORLD, &comm);
     MPI_Comm_size(comm, &NPROC);
     MPI_Comm_rank(comm, &mpi_id);  
@@ -639,50 +638,51 @@ int main(int argc, char *argv[]) {
 
     for ( n_try = 0 ; n_try < max_tries ; n_try++ ) {
 
- 	init_try(n_try);
+        init_try(n_try);
 
-    if ( NPROC >1 )
+        if ( NPROC > 1 ) {
             startCommColoniesTour(comm); /*prepare buffer for communications from Colonies */
+        }
 
-	while ( !termination_condition() ) {
-        
-        //printf("Entering while loop\n");
-	    construct_solutions();
-        
-        printf("[main loop] %d / %d: constructing solutions\n", mpi_id, NPROC);
-	    if ( ls_flag > 0 )
-		       local_search();
+        while ( !termination_condition() ) {
+            
+            //printf("Entering while loop\n");
+            construct_solutions();
+            
+            printf("[main loop] %d / %d: constructing solutions\n", mpi_id, NPROC);
+            if ( ls_flag > 0 )
+                local_search();
 
-        printf("[main loop] %d / %d: updating statistics\n", mpi_id, NPROC);
-	    update_statistics(comm);
+            printf("[main loop] %d / %d: updating statistics\n", mpi_id, NPROC);
+            update_statistics(comm);
 
-        printf("[main loop] %d / %d: pheromone trail update\n", mpi_id, NPROC);
-	    pheromone_trail_update();  
+            printf("[main loop] %d / %d: pheromone trail update\n", mpi_id, NPROC);
+            pheromone_trail_update();  
 
-        printf("[main loop] %d / %d: search control & statistics\n", mpi_id, NPROC);
-	    search_control_and_statistics();
+            printf("[main loop] %d / %d: search control & statistics\n", mpi_id, NPROC);
+            search_control_and_statistics();
 
-	    iteration++;
+            iteration++;
 
-        #ifdef FT_ACO
+            #ifdef FT_ACO
 
-		printf("[main] TRY: %d\n", n_try);
-		if (killFlag == 0 && mpi_id == NPROC-1) {
-            printf("MÁTOME AQUÍ\n");
-			raise(SIGKILL);
-		}
-        killFlag = 1;
+            printf("[main loop] %d / %d TRY: %d\n", mpi_id, NPROC, n_try);
+            if (NPROC > 1 && mpi_id == 0) {
+                printf("[main loop] %d / %d: MÁTOME AQUÍ\n", mpi_id, NPROC);
+                raise(SIGKILL);
+            }
+            killFlag = 1;
 
 
-        //MPI_Bcast(&NPROC, 1, MPI_INT, 0, comm);
-        //MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);
-        //MPI_Comm_size(MPI_COMM_WORLD, &NPROC);
-        //printf("AFTER FAILURE REW PROCESS MAPPING: %d / %d\n", mpi_id, NPROC);
-        #endif
-	}
+            //MPI_Bcast(&NPROC, 1, MPI_INT, 0, comm);
+            //MPI_Comm_rank(MPI_COMM_WORLD, &mpi_id);
+            //MPI_Comm_size(MPI_COMM_WORLD, &NPROC);
+            //printf("AFTER FAILURE REW PROCESS MAPPING: %d / %d\n", mpi_id, NPROC);
+            #endif
+        }
 
-	exit_try(comm, n_try);
-        
+        //exit_try(comm, n_try);
+            
     }
     
     exit_program();

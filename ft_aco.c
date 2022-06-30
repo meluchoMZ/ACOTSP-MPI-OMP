@@ -185,30 +185,30 @@ void repair(MPI_Comm * comm) {
     if ( *comm != MPI_COMM_NULL) {
         scomm = (MPI_Comm *) malloc(sizeof(MPI_Comm));
         MPIX_Comm_shrink(*comm, scomm);
-        printf("[%s] Repair: can shrink the communicator\n", get_current_time(time));
+        printf("[%s] % d / %d Repair: can shrink the communicator\n", get_current_time(time), *global_rank, *global_procs);
         MPI_Comm_size(*scomm, &ns);
-        printf("[%s] Repair: can do first MPI_Comm_size\n", get_current_time(time));
+        printf("[%s] % d / %d Repair: can do first MPI_Comm_size\n", get_current_time(time), *global_rank, *global_procs);
         MPI_Comm_size(*comm, &nc);
-        printf("[%s] Repair: found %d dead processes\n", get_current_time(time), nc - ns);
+        printf("[%s] %d / %d Repair: found %d dead processes\n", get_current_time(time), *global_rank, *global_procs, nc - ns);
         //MPIX_Comm_revoke(*comm);
         //printf("[%s] Repair: communicator revoked\n", get_current_time(time));
         if (MPI_COMM_WORLD != *comm) {
-            printf("[%s] Repair: communicator is Not THE WORLD\n", get_current_time(time));
+            printf("[%s] %d / %d Repair: communicator is Not THE WORLD\n", get_current_time(time), *global_rank, *global_procs);
             int rc = MPI_Comm_free(comm);
             if (rc == MPI_SUCCESS) {
-                printf("[%s] Repair: communicator destroyed\n", get_current_time(time));
+                printf("[%s] %d / %d Repair: communicator destroyed\n", get_current_time(time), *global_rank, *global_procs);
             } else {
                 char error_info[MPI_MAX_ERROR_STRING];
                 int error_info_length;
                 MPI_Error_string(rc, error_info, &error_info_length);
-                printf("[%s] Repair: communicator not destroyed: %s", get_current_time(time), error_info);
+                printf("[%s] %d / %d Repair: communicator not destroyed: %s", get_current_time(time), *global_rank, *global_procs, error_info);
             }
         }
         if (*scomm == MPI_COMM_NULL) {
-            printf("[%s] Repair: communicator is NULL\n", get_current_time(time));
+            printf("[%s] %d / %d Repair: communicator is NULL\n", get_current_time(time), *global_rank, *global_procs);
         }
         *comm = *scomm;
-        printf("[%s] Repair: communicator reasigned\n", get_current_time(time));
+        printf("[%s] %d / %d Repair: communicator reasigned\n", get_current_time(time), *global_rank, *global_procs);
     }
 }
 
@@ -236,25 +236,30 @@ void FT_ignore_on_failure(MPI_Comm * comm, int * err, ...)
     MPIX_Comm_failure_get_acked(*comm, &group_f);
     MPI_Group_size(group_f, &number_of_dead);
 
-    printf("[%s] found error: %s\n", get_current_time(time), error_info);
-    printf("[%s] Error handler: entering\n", get_current_time(time));
+    printf("[%s] %d / %d found error: %s\n", get_current_time(time), *global_rank, *global_procs, error_info);
+    printf("[%s] %d / %d Error handler: entering\n", get_current_time(time), *global_rank, *global_procs);
     MPI_Comm new_comm;
-    printf("[%s] Error handler: before replace\n", get_current_time(time));
+    printf("[%s] %d / %d Error handler: before replace\n", get_current_time(time), *global_rank, *global_procs);
     //MPIX_Comm_replace(*comm, &new_comm);
     repair(comm);
-    printf("[%s] Error handler: after replace\n", get_current_time(time));
+    printf("[%s] %d / %d Error handler: after replace\n", get_current_time(time), *global_rank, *global_procs);
     //MPI_Comm_free(comm);
     //*comm = new_comm;
-    printf("[%s] Error handler: exiting handler\n", get_current_time(time));
+    printf("[%s] %d / %d Error handler: exiting handler\n", get_current_time(time), *global_rank, *global_procs);
     if (*comm == MPI_COMM_NULL) {
-        printf("[%s] Error handler: communicator is NULL\n", get_current_time(time));
+        printf("[%s] %d / %d Error handler: communicator is NULL\n", get_current_time(time), *global_rank, *global_procs);
     }
     MPI_Comm_group(*comm, &group_c);
-    MPI_Group_translate_ranks(group_f, number_of_dead, &ranks_gf, group_c, &ranks_gc);
-	MPI_Comm_rank(*comm, &ranks_gc);
-	printf("[handler - %s] re-ranking processes. New map %d / %d -> %d / %d\n", get_current_time(time), rank, size, ranks_gc, size-number_of_dead);
-	*global_rank = (int) ranks_gc;
-	*global_procs = (int) size - number_of_dead;
+    //MPI_Group_translate_ranks(group_f, number_of_dead, &ranks_gf, group_c, &ranks_gc);
+    int shrinked_rank, shrinked_size;
+	MPI_Comm_rank(*comm, &shrinked_rank);
+    printf("[handler - %s] %d / %d: new rank = %d\n", get_current_time(time), rank, size, shrinked_rank);
+    MPI_Comm_size(*comm, &shrinked_size);
+    printf("[handler - %s] %d / %d: new size = %d\n", get_current_time(time), rank, size, shrinked_size);
+	printf("[handler - %s] %d / %d re-ranking processes. New map %d / %d -> %d / %d\n", get_current_time(time), *global_rank, *global_procs, rank, size, shrinked_rank, shrinked_size);
+	*global_rank = (int) shrinked_rank;
+	*global_procs = (int) shrinked_size;
+    printf("[handler - %s] %d / %d: using new global rank and size values\n", get_current_time(time), *global_rank, *global_procs);
     /*
     MPI_Comm * new_comm;
     new_comm = (MPI_Comm *) malloc(sizeof(MPI_Comm));

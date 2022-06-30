@@ -108,6 +108,7 @@ void sendBestSolutionToColonies (MPI_Comm comm)
     printf("[sendBestSolutionToColonies] %d / %d entering method\n", mpi_id, NPROC);
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
+    printf("[sendBestSolutionToColonies] global: %d / %d; local: %d / %d\n", mpi_id, NPROC, rank, size);
     for( i=0 ; i<NPROC ; i++ )
        if ( i != mpi_id){
            MPI_Isend(best_so_far_ant->tour, n+1, MPI_LONG, i,
@@ -120,7 +121,7 @@ void sendBestSolutionToColonies (MPI_Comm comm)
     best_global_tour_length = best_so_far_ant->tour_length;
     
     if (mpi_id==0 && cc_report) fprintf(cc_report,"%ld \t %f\n",best_global_tour_length,elapsed_time(REAL));
-    printf("Process %d / %d: sent best solution to colonies\n", rank, size);
+    printf("[sendBestSolutionToColonies] Process %d / %d: sent best solution to colonies\n", rank, size);
 
 }
 
@@ -146,6 +147,11 @@ void listenTours(MPI_Comm comm)
         while ( flag == 1 ) {
 
 	        //MPI_Test(&request[i][n_try], &flag, &status);
+            printf("[listenTours] %d / %d before i-probe 1\n", mpi_id, NPROC);
+            printf("[listenTours] %d / %d before i-probe 2\n", mpi_id, NPROC);
+            printf("[listenTours] %d / %d before i-probe 3\n", mpi_id, NPROC);
+            printf("[listenTours] %d / %d before i-probe 4\n", mpi_id, NPROC);
+            printf("[listenTours] %d / %d before i-probe 5\n", mpi_id, NPROC);
             MPI_Iprobe(MPI_ANY_SOURCE, tag, comm, &flag, &status);
             printf("[listenTours] %d / %d i-probe with flag = %d received from %d / %d with tag=%d\n", mpi_id, NPROC, flag, status.MPI_SOURCE, NPROC, status.MPI_TAG);
         
