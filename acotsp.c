@@ -583,6 +583,7 @@ int main(int argc, char *argv[]) {
     start_timers();
     int provided;
     int killFlag = 0;
+    int isNewSpawnee = 0;
 
     /** MPI Initialization **/
 
@@ -591,13 +592,45 @@ int main(int argc, char *argv[]) {
         printf("Executing in MPI_THREAD_MULTIPLE mode\n");
     }
 
+	FT_init();
 
     //MPI_Init(&argc, &argv);
-    MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+    // handles creation by checking parent 
+    MPI_Comm parent;
+    MPI_Comm_get_parent(&parent);
+    if (parent == MPI_COMM_NULL) {
+        printf("[main loop] original process\n");
+        MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+    } else {
+        printf("[main loop new spawnee] new spawnee after failure\n");
+        printf("[main loop new spawnee] Trying to attach to quasi-global communicator...\n");
+        FT_set_respawn_data(argv, &mpi_id, &NPROC);
+        int stt = attach_to_comm(&comm);
+        printf("[main loop new spawnee] status: %d\n", stt);
+        printf("[main loop new spawnee] new comm\n");
+        if (MPI_COMM_NULL == comm) {
+            printf("[main loop new spawnee] MPI_COMM_NULL\n");
+        } else {
+            printf("[main loop new spawnee] not  MPI_COMM_NULL\n");
+        }
+        printf("[main loop spawnee] before comm test\n");
+        MPI_Comm_rank(comm, &mpi_id);
+        MPI_Comm_size(comm, &NPROC);
+        printf("[main loop spawnee] after comm test, %d / %d\n", mpi_id, NPROC);
+        MPI_Comm_set_errhandler(comm, FT_RESPAWN_ON_FAILURE_HANDLER);
+        printf("[main loop spawnee]: Using FT_RESPAWN_ON_FAILURE_HANDLER\n");
+        isNewSpawnee = 1;
+    }
+    if (isNewSpawnee == 1)
+        printf("[main loop new spawnee] computing initial size\n");
     MPI_Comm_size(comm, &NPROC);
+    if (isNewSpawnee == 1)
+        printf("[main loop new spawnee] computing initial rank\n");
     MPI_Comm_rank(comm, &mpi_id);  
 
-	FT_init();
+    if (isNewSpawnee == 1)
+        printf("[main loop new spawnee] %d / %d: initial parameters computed\n", mpi_id, NPROC);
+
 
     #ifdef FT_ACO
     #ifdef FT_ERRORS_ARE_FATAL
@@ -620,10 +653,18 @@ int main(int argc, char *argv[]) {
     FT_set_respawn_data(argv, &mpi_id, &NPROC);
     printf("[%s] Respawn data shared\n", get_current_time(time));
     #endif
+    #ifdef FT_RESPAWN_ON_FAILURE
+    char time[12] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
+    MPI_Comm_set_errhandler(comm, FT_RESPAWN_ON_FAILURE_HANDLER);
+    printf("[%s]: Using FT_RESPAWN_ON_FAILURE_HANDLER\n", get_current_time(time));
+    FT_set_respawn_data(argv, &mpi_id, &NPROC);
+    printf("[%s] Respawn data shared\n", get_current_time(time));
+    #endif
 
     //MPI_Barrier(comm);
     printf("Process %d / %d: reporting alive\n", mpi_id, NPROC);
     #endif
+
     
 
     init_program(argc, argv);
@@ -667,7 +708,7 @@ int main(int argc, char *argv[]) {
             #ifdef FT_ACO
 
             printf("[main loop] %d / %d TRY: %d\n", mpi_id, NPROC, n_try);
-            if (NPROC > 1 && mpi_id == 0) {
+            if (killFlag == 0 && NPROC > 1 && mpi_id == 0) {
                 printf("[main loop] %d / %d: MÁTOME AQUÍ\n", mpi_id, NPROC);
                 raise(SIGKILL);
             }
@@ -681,7 +722,7 @@ int main(int argc, char *argv[]) {
             #endif
         }
 
-        //exit_try(comm, n_try);
+        exit_try(comm, n_try);
             
     }
     

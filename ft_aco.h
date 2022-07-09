@@ -24,6 +24,8 @@
 
 extern MPI_Errhandler ft_abort_on_failure_error_handler;
 extern MPI_Errhandler ft_ignore_on_failure_error_handler;
+extern MPI_Errhandler ft_respawn_on_failure_error_handler;
+extern MPI_Errhandler ft_respawn_on_failure_error_handler;
 
 /*
  * FT_ERRORS_ARE_FATAL_ON_FAILURE_HANDLER
@@ -62,6 +64,22 @@ extern MPI_Errhandler ft_ignore_on_failure_error_handler;
  */
 #define FT_IGNORE_ON_FAILURE_HANDLER ft_ignore_on_failure_error_handler
 
+/*
+ * FT_RESPAWN_ON_ERROR_HANLDER
+ * When it is called, this handler tries to continue the MPI program by 
+ * spawning new processes to replace the failed ones. During the 
+ * proccess spawning logic, all subsequent erros will not trigger 
+ * this error handler, assuring only one spawn.
+ */
+#define FT_RESPAWN_ON_FAILURE_HANDLER ft_respawn_on_failure_error_handler
+
+/*
+ * FT_ELASTIC_RESPAWN_ON_ERROR_HANLDER
+ * Same as FT_RESPAWN_ON_ERROR_HANDLER, but only spawns failed processes 
+ * when the number of failed processes surpass certain user-defined 
+ * threshold.
+ */
+#define FT_ELASTIC_RESPAWN_ON_FAILURE_HANDLER ft_elastic_respawn_on_failure_error_handler
 
 /*
  * Initializes predefined error handlers.
@@ -133,7 +151,12 @@ void FT_ignore_on_failure(MPI_Comm * comm, int * err, ...);
 
 void FT_set_respawn_data(char ** argv, int * id, int * nprocs);
 
+void FT_respawn_on_failure(MPI_Comm * comm, int * err, ...);
+ 
+void FT_elastic_respawn_on_failure(MPI_Comm * comm, int * err, ...);
 
 char * get_current_time(char * output);
+
+int attach_to_comm(MPI_Comm * comm);
  
 #endif

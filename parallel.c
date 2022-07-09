@@ -137,9 +137,9 @@ void listenTours(MPI_Comm comm)
     int tag = 3000 + n_try;
     
     /* Loop to listen best solutions from colonies */
-    //for(i=0; i<NPROC ; i++) {
+    for(i=0; i<NPROC ; i++) {
  
-      //if(i!=mpi_id){
+      if(i!=mpi_id){
 
         flag = 1;
         printf("[listenTours] %d / %d: entering\n", mpi_id, NPROC);
@@ -157,7 +157,7 @@ void listenTours(MPI_Comm comm)
         
             if (flag==1) {
                 MPI_Recv(&global_tour[status.MPI_SOURCE][0], n + 1, MPI_LONG, status.MPI_SOURCE, tag, comm, &status);
-                printf("[listenTours] %d / %d received message from %d / %d with tag=%d", mpi_id, NPROC, status.MPI_SOURCE, NPROC, status.MPI_TAG);
+                printf("[listenTours] %d / %d received message from %d / %d with tag=%d\n", mpi_id, NPROC, status.MPI_SOURCE, NPROC, status.MPI_TAG);
 
               recv_tour_length = compute_tour_length( &global_tour[status.MPI_SOURCE][0] );
             
@@ -175,8 +175,8 @@ void listenTours(MPI_Comm comm)
                       status.MPI_SOURCE, 3000, comm, &request[i][n_try]);
             
             }
-     // }
-    // }
+        }
+    }
    }
     
 }
