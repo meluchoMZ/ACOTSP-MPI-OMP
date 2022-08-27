@@ -13,7 +13,9 @@
 MPI_Errhandler ft_abort_on_failure_error_handler = NULL;
 MPI_Errhandler ft_ignore_on_failure_error_handler = NULL;
 MPI_Errhandler ft_respawn_on_failure_error_handler = NULL;
-int spawn_threshold = 0;
+MPI_Errhandler ft_elastic_respawn_on_failure_error_handler = NULL;
+int spawn_threshold = 1;
+int max_procs_allowed = 0;
 
 /*
  * Cleanup function.
@@ -39,6 +41,7 @@ void FT_init(void)
     MPI_Comm_create_errhandler(&FT_abort_on_failure, &ft_abort_on_failure_error_handler);
     MPI_Comm_create_errhandler(&FT_ignore_on_failure ,&ft_ignore_on_failure_error_handler);
     MPI_Comm_create_errhandler(&FT_respawn_on_failure, &ft_respawn_on_failure_error_handler);
+    MPI_Comm_create_errhandler(&FT_elastic_respawn_on_failure, &ft_elastic_respawn_on_failure_error_handler);
 }
 
 void FT_finalize(void)
@@ -46,6 +49,7 @@ void FT_finalize(void)
     MPI_Errhandler_free(&ft_abort_on_failure_error_handler);
     MPI_Errhandler_free(&ft_ignore_on_failure_error_handler);
     MPI_Errhandler_free(&ft_respawn_on_failure_error_handler);
+    MPI_Errhandler_free(&ft_elastic_respawn_on_failure_error_handler);
 }
 
 void FT_set_error_handler(MPI_Comm comm, MPI_Errhandler error_handler)
@@ -100,7 +104,7 @@ int MPIX_Comm_replace(MPI_Comm comm, MPI_Comm *newcomm) {
              mcomm; /* the intracomm, merged from icomm */
     MPI_Errhandler backup;
     MPI_Comm_get_errhandler(comm, &backup);
-    int rc, flag, rflag, nc, ns, nd, rank;
+    int rc, flag, rflag, nc, ns, nd, rank, size;
     printf("Replace: entering replace\n");
 
 redo:
@@ -179,6 +183,8 @@ redo:
     *newcomm = mcomm;
 
     MPI_Comm_rank(mcomm, &rank);
+    MPI_Comm_size(mcomm, &size);
+    printf("MPI_COMM_REPLACE %d / %d", rank, size);
     return MPI_SUCCESS;
 }
 
@@ -186,8 +192,16 @@ void repair(MPI_Comm * comm) {
     char time[12] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
     MPI_Comm * scomm;
     int ns, nc;
+    MPI_Group group_f;
+    printf("[repair] before failure ack\n");
+    MPIX_Comm_failure_ack(*comm);
+    printf("[repair] after failure ack\n");
+    MPIX_Comm_failure_get_acked(*comm, &group_f);
+    printf("[repair] after failure acked\n");
     if ( *comm != MPI_COMM_NULL) {
+        printf("[repair] before malloc\n");
         scomm = (MPI_Comm *) malloc(sizeof(MPI_Comm));
+        printf("[repair] before shrink\n");
         MPIX_Comm_shrink(*comm, scomm);
         printf("[%s] % d / %d Repair: can shrink the communicator\n", get_current_time(time), *global_rank, *global_procs);
         MPI_Comm_size(*scomm, &ns);
@@ -213,6 +227,8 @@ void repair(MPI_Comm * comm) {
         }
         *comm = *scomm;
         printf("[%s] %d / %d Repair: communicator reasigned\n", get_current_time(time), *global_rank, *global_procs);
+    } else {
+        printf("Cannot repair communicator: comm is NULL\n");
     }
 }
 
@@ -244,8 +260,9 @@ void FT_ignore_on_failure(MPI_Comm * comm, int * err, ...)
     printf("[%s] %d / %d Error handler: entering\n", get_current_time(time), *global_rank, *global_procs);
     MPI_Comm new_comm;
     printf("[%s] %d / %d Error handler: before replace\n", get_current_time(time), *global_rank, *global_procs);
-    MPIX_Comm_replace(*comm, &new_comm);
+    //MPIX_Comm_replace(*comm, &new_comm);
     //MPI_Comm_free(comm);
+    repair(comm);
     //*comm = new_comm;
     printf("[%s] %d / %d Error handler: exiting handler\n", get_current_time(time), *global_rank, *global_procs);
     if (*comm == MPI_COMM_NULL) {
@@ -278,6 +295,7 @@ int attach_to_comm(MPI_Comm * comm) {
     printf("[attach_to_comm] entering\n");
     respawn(MPI_COMM_NULL, comm);
     printf("[attach_to_comm] leaving\n");
+    return MPI_SUCCESS;
 }
 
 void respawn(MPI_Comm comm, MPI_Comm * newcomm)
@@ -430,7 +448,7 @@ redo:
     MPI_Comm_size(mcomm, global_procs);
     if (isNewSpawnee == 0)
         printf("[respawn new spawnee] global size updated\n");
-    return MPI_SUCCESS;
+    //return MPI_SUCCESS;
 }
 
 void FT_respawn_on_failure(MPI_Comm * comm, int * err, ...)
@@ -478,8 +496,20 @@ void FT_respawn_on_failure(MPI_Comm * comm, int * err, ...)
     printf("[respawn handler - %s] %d / %d: using new global rank and size values\n", get_current_time(time), *global_rank, *global_procs);
 }
 
-void set_spawn_threshold(int threshold) {
+void set_spawn_threshold(int threshold) 
+{
     spawn_threshold = threshold;
+}
+
+void FT_set_elastic_respawn_data(char ** argv, int * mpi_id, int * NPROC, int min_procs, int max_procs) 
+{
+    gargv = argv;
+    global_rank = (int *) mpi_id;
+	global_procs = (int *) NPROC;
+    spawn_threshold = min_procs;
+    max_procs_allowed = max_procs;
+    char time[12] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
+    printf("[%s] command: %s; args: %s\n", get_current_time(time), gargv[0], gargv[1]);
 }
 
 void FT_elastic_respawn_on_failure(MPI_Comm * comm, int * err, ...)
@@ -510,7 +540,10 @@ void FT_elastic_respawn_on_failure(MPI_Comm * comm, int * err, ...)
     if (spawn_threshold > (size - number_of_dead)) {
         repair(comm);
     } else {
-        respawn(*comm, comm);
+        int counter;
+        for (counter = 0; counter < max_procs_allowed; counter++) {
+            respawn(*comm, comm);
+        }
     }
     printf("[elastic handler - %s] %d / %d Error handler: after replace\n", get_current_time(time), *global_rank, *global_procs);
     //MPI_Comm_free(comm);

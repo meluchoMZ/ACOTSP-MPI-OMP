@@ -592,6 +592,140 @@ void exit_try(MPI_Comm comm,  long int ntry )
   if (comp_report) fflush(comp_report); 
   if (stat_report) fflush(stat_report); 
 
+  int id, n;
+  MPI_Comm_rank(comm, &id);
+  MPI_Comm_size(comm, &n);
+  printf("[exit_try] exiting try %d / %d \n", id, n);
+  
+    int     i, com_id;
+    long int    best_com_tour, com_tour_length, com_iter, com_found_best;
+    double  com_found_branching, com_b_fac, com_time, com_best_time;
+    
+    best_com_tour = best_so_far_ant->tour_length;
+    com_found_best = found_best;
+    com_found_branching = found_branching;
+    com_best_time = time_used;
+    com_id = mpi_id;
+    
+  if (mpi_id == 0 ) {
+    printf("id = %d; NPROC = %d\n", id, NPROC);
+  }
+    if( mpi_id == 0 ) {
+        printf("%d right before recv\n", mpi_id);
+        if (NPROC > 1) {
+            for( i=1 ; i<NPROC ; i++ ) {
+                int flag, status;
+                MPI_Iprobe(i, 2000, comm, &flag, &status);
+                if (flag == 1) {
+                    MPI_Recv(&com_tour_length, 1, MPI_LONG, i, 2000, comm, &status);
+                    MPI_Recv(&com_iter, 1, MPI_LONG, i, 2000, comm, &status);
+                    MPI_Recv(&com_b_fac, 1, MPI_DOUBLE, i, 2000, comm, &status);
+                    MPI_Recv(&com_time, 1, MPI_DOUBLE, i, 2000, comm, &status);
+                    
+                    if ( com_tour_length < best_com_tour ) {
+                        best_com_tour = com_tour_length;
+                        com_found_best = com_iter;
+                        com_found_branching = com_b_fac;
+                        com_best_time = com_time;
+                        com_id=i;
+                    }
+                }
+            
+            }
+        }
+        printf("%d right after recv\n", mpi_id);
+    } else {
+        printf("%d sending final solutions to root\n", mpi_id);
+        MPI_Isend(&best_com_tour, 1, MPI_LONG, 0, 2000, comm,&SRrequest);
+        MPI_Isend(&com_found_best, 1, MPI_LONG, 0, 2000, comm,&SRrequest);
+        MPI_Isend(&com_found_branching, 1, MPI_DOUBLE, 0, 2000, comm,&SRrequest);
+        MPI_Isend(&com_best_time, 1, MPI_DOUBLE, 0, 2000, comm,&SRrequest);
+    }
+    
+  printf("'bout to open file %d / %d", mpi_id, NPROC);
+  if (id == 0) {
+  printf("[exit_try] process 0 opening file\n");
+    FILE * file;
+    #ifdef FT_ACO 
+        #ifdef FT_ERRORS_ARE_FATAL
+            #ifdef KILL_AT_50
+                file = fopen("ft_errors_are_fatal_1_kill_50.txt", "a+");
+            #endif
+            #ifdef KILL_AT_25_AND_50
+                file = fopen("ft_errors_are_fatal_2_kill_25_50.txt", "a+");
+            #endif
+            #ifdef KILL_ALL_BUT_ONE
+                file = fopen("ft_errors_are_fatal_all_but_one_killed.txt", "a+");
+            #endif
+        #endif
+        #ifdef FT_ERRORS_RETURN
+            #ifdef KILL_AT_50
+                file = fopen("ft_errors_are_return_1_kill_50.txt", "a+");
+            #endif
+            #ifdef KILL_AT_25_AND_50
+                file = fopen("ft_errors_are_return_2_kill_25_50.txt", "a+");
+            #endif
+            #ifdef KILL_ALL_BUT_ONE
+                file = fopen("ft_errors_are_return_all_but_one_killed.txt", "a+");
+            #endif
+        #endif
+        #ifdef FT_ABORT_ON_FAILURE
+            #ifdef KILL_AT_50
+                file = fopen("ft_abort_on_failure_1_kill_50.txt", "a+");
+            #endif
+            #ifdef KILL_AT_25_AND_50
+                file = fopen("ft_abort_on_failure_2_kill_25_50.txt", "a+");
+            #endif
+            #ifdef KILL_ALL_BUT_ONE
+                file = fopen("ft_abort_on_failure_all_but_one_killed.txt", "a+");
+            #endif
+        #endif
+				printf("OUTPUT FT ACO\n");
+        #ifdef FT_IGNORE_ON_FAILURE
+				printf("OPEN FILE IGNORE ON FAILURE\n");
+            #ifdef KILL_AT_50
+                file = fopen("ft_ignore_on_failure_1_kill_50.txt", "a+");
+            #endif
+            #ifdef KILL_AT_25_AND_50
+                file = fopen("ft_ignore_on_failure_2_kill_25_50.txt", "a+");
+            #endif
+            #ifdef KILL_AT_25_AND_50
+                file = fopen("ft_ignore_on_failure_2_kill_25_50.txt", "a+");
+            #endif
+            #ifdef KILL_ALL_BUT_ONE
+                file = fopen("ft_ignore_on_failure_all_but_one_killed.txt", "a+");
+            #endif
+        #endif
+        #ifdef FT_RESPAWN_ON_FAILURE
+            #ifdef KILL_AT_50
+                file = fopen("ft_respawn_on_failure_1_kill_50.txt", "a+");
+            #endif
+            #ifdef KILL_AT_25_AND_50
+                file = fopen("ft_respawn_on_failure_2_kill_25_50.txt", "a+");
+            #endif
+            #ifdef KILL_ALL_BUT_ONE
+                file = fopen("ft_respawn_on_failure_all_but_one_killed.txt", "a+");
+            #endif
+        #endif
+        #ifdef FT_ELASTIC_RESPAWN_ON_FAILURE
+            #ifdef KILL_AT_50
+                file = fopen("ft_elastic_respawn_on_failure_1_kill_50.txt", "a+");
+            #endif
+            #ifdef KILL_AT_25_AND_50
+                file = fopen("ft_elastic_respawn_on_failure_2_kill_25_50.txt", "a+");
+            #endif
+            #ifdef KILL_ALL_BUT_ONE
+                file = fopen("ft_elastic_respawn_on_failure_all_but_one_killed.txt", "a+");
+            #endif
+        #endif
+    #else 
+        file = fopen("non_fault_tolerant_rat_1.txt", "a+");
+    #endif
+
+    fprintf(file, "Best: %d;\t Iteration: %d\t Found at time %f\t Total time:%.2f\n", best_com_tour, com_found_best, com_best_time, elapsed_time( REAL ));
+    fclose(file);
+  }
+
 }
 
 

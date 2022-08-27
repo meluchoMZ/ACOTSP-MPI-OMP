@@ -66,13 +66,13 @@ long int termination_condition( void )
 {
     stopColonies = 0;
 
-    printf("[termination_condition] Process %d / %d\n", mpi_id, NPROC);
+    printf("[termination_condition] Process %d / %d -> iterations = %d\n", mpi_id, NPROC, iteration);
     if (NPROC == 1) 
     	best_global_tour_length = best_so_far_ant -> tour_length;
-    
+
     return ( elapsed_time( REAL ) >= max_time ||
             iteration > max_iters || best_global_tour_length <= optimal );
-
+    //return best_global_tour_length <= optimal;
     }
 
 
@@ -579,12 +579,12 @@ int main(int argc, char *argv[]) {
     int ft_parameter = 666;
     #endif 
     #endif
-    long int i;
+    long int i = 1;
     start_timers();
-    int provided;
-    int killFlag = 0;
-    int isNewSpawnee = 0;
 
+    int provided;
+    int isNewSpawnee = 0;
+    int killFlag = 0;
     /** MPI Initialization **/
 
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
@@ -660,6 +660,13 @@ int main(int argc, char *argv[]) {
     FT_set_respawn_data(argv, &mpi_id, &NPROC);
     printf("[%s] Respawn data shared\n", get_current_time(time));
     #endif
+    #ifdef FT_ELASTIC_RESPAWN_ON_FAILURE
+    char time[12] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
+    MPI_Comm_set_errhandler(comm, FT_ELASTIC_RESPAWN_ON_FAILURE_HANDLER);
+    printf("[%s]: Using FT_ELASTIC_RESPAWN_ON_FAILURE_HANDLER\n", get_current_time(time));
+    FT_set_elastic_respawn_data(argv, &mpi_id, &NPROC, 1, 4);
+    printf("[%s] Respawn data shared\n", get_current_time(time));
+    #endif
 
     //MPI_Barrier(comm);
     printf("Process %d / %d: reporting alive\n", mpi_id, NPROC);
@@ -703,16 +710,15 @@ int main(int argc, char *argv[]) {
             printf("[main loop] %d / %d: search control & statistics\n", mpi_id, NPROC);
             search_control_and_statistics();
 
-            iteration++;
 
-            #ifdef FT_ACO
+            #ifdef FT_ACO_ASDFOJ
 
             printf("[main loop] %d / %d TRY: %d\n", mpi_id, NPROC, n_try);
-            if (killFlag == 0 && NPROC > 1 && mpi_id == 0) {
-                printf("[main loop] %d / %d: MÁTOME AQUÍ\n", mpi_id, NPROC);
+            if (killFlag == 0 && NPROC > 1 && mpi_id == NPROC-1) {
+                printf("[main loop] %d / %d: old MÁTOME AQUÍ\n", mpi_id, NPROC);
                 raise(SIGKILL);
             }
-            killFlag = 1;
+            killFlag = 0;
 
 
             //MPI_Bcast(&NPROC, 1, MPI_INT, 0, comm);
@@ -720,9 +726,53 @@ int main(int argc, char *argv[]) {
             //MPI_Comm_size(MPI_COMM_WORLD, &NPROC);
             //printf("AFTER FAILURE REW PROCESS MAPPING: %d / %d\n", mpi_id, NPROC);
             #endif
+            #ifdef KILL_AT_50
+            if (iteration == 5 && mpi_id == NPROC - 1) {
+                printf("[main loop] %d / %d: MÁTOME AQUÍ\n", mpi_id, NPROC);
+                raise(SIGKILL);
+            }
+            #endif
+            #ifdef KILL_AT_25_AND_50
+            if (iteration == 250 && mpi_id == 4) {
+                printf("[main loop] 25% %d / %d: MÁTOME AQUÍ\n", mpi_id, NPROC);
+                raise(SIGKILL);
+            }            
+            if (iteration == 500 && mpi_id == 3) {
+                printf("[main loop] 50% %d / %d: MÁTOME AQUÍ\n", mpi_id, NPROC);
+                raise(SIGKILL);
+            }            
+            #endif
+
+            #ifdef KILL_AT_25_AND_50
+            /*
+            printf("[main loop] kill at 25 and 50\n");
+            if (iteration == 250 && mpi_id == 15) {
+                printf("[main loop] %d / %d: MÁTOME AQUÍ na iteración %d; try = %d\n", mpi_id, NPROC, iteration, n_try);
+                raise(SIGKILL);
+            }
+            if (iteration == 500 && mpi_id == 14) {
+                printf("[main loop] %d / %d: MÁTOME AQUÍ na iteración %d; try = %d\n", mpi_id, NPROC, iteration, n_try);
+                raise(SIGKILL);
+            }
+            */
+            #endif
+            #ifdef KILL_ALL_BUT_ONE
+            printf("kill all but one, id = %d\n", mpi_id);
+            if (iteration % 16 == 0) {
+                if (mpi_id != 0 && mpi_id == NPROC - i) {
+                    //i++;
+                    printf("[main loop] %d / %d: MÁTOME AQUÍ iteration = %d\n", mpi_id, NPROC, iteration);
+                    raise(SIGKILL);
+                }
+                i++;
+            }
+            #endif
+            iteration++;
         }
 
+        printf("[main loop] about to exit try\n");
         exit_try(comm, n_try);
+        printf("[main loop] try exited\n");
             
     }
     

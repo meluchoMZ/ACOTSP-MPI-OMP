@@ -25,7 +25,7 @@
 extern MPI_Errhandler ft_abort_on_failure_error_handler;
 extern MPI_Errhandler ft_ignore_on_failure_error_handler;
 extern MPI_Errhandler ft_respawn_on_failure_error_handler;
-extern MPI_Errhandler ft_respawn_on_failure_error_handler;
+extern MPI_Errhandler ft_elastic_respawn_on_failure_error_handler;
 
 /*
  * FT_ERRORS_ARE_FATAL_ON_FAILURE_HANDLER
@@ -153,6 +153,8 @@ void FT_set_respawn_data(char ** argv, int * id, int * nprocs);
 
 void FT_respawn_on_failure(MPI_Comm * comm, int * err, ...);
  
+void FT_set_elastic_respawn_data(char ** argv, int * id, int * nprocs, int min_procs, int max_procs);
+
 void FT_elastic_respawn_on_failure(MPI_Comm * comm, int * err, ...);
 
 char * get_current_time(char * output);
